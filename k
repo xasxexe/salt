@@ -1,35 +1,52 @@
 -- ============================================
--- УЛУЧШЕННЫЙ ЧИТ-СКРИПТ (С ДВИГАЕМЫМ GUI И УМНЫМ ESP)
+-- ПОЛНОСТЬЮ РАБОЧИЙ ЧИТ-СКРИПТ (ВСЕ ФИКСЫ)
 -- ============================================
 
 -- ============================================
--- 1. ДВИГАЕМОЕ GUI МЕНЮ
+-- 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+-- ============================================
+local LocalPlayer = game.Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local UserInput = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Настройки
+local espEnabled = false
+local aimbotEnabled = false
+local flyEnabled = false
+local speedMultiplier = 1
+local aimbotRadius = 200
+local selectedTarget = nil
+local playerList = {}
+local lastPlayerUpdate = 0
+
+-- ============================================
+-- 2. СОЗДАНИЕ GUI (НЕ ИСЧЕЗАЕТ)
 -- ============================================
 local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = LocalPlayer.PlayerGui
+ScreenGui.ResetOnSpawn = false  -- ВАЖНО: не сбрасывается при смерти!
+
 local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local DragButton = Instance.new("TextButton")  -- Кнопка для перетаскивания
-local CloseButton = Instance.new("TextButton") -- Кнопка закрытия
-
--- Настройка главного окна
-ScreenGui.Parent = game.Players.LocalPlayer.PlayerGui
 MainFrame.Parent = ScreenGui
-MainFrame.Size = UDim2.new(0, 220, 0, 380)
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -190) -- По центру экрана
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-MainFrame.BackgroundTransparency = 0.15
+MainFrame.Size = UDim2.new(0, 250, 0, 450)
+MainFrame.Position = UDim2.new(0.5, -125, 0.5, -225)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BackgroundTransparency = 0.1
 MainFrame.Active = true
-MainFrame.Draggable = true  -- Встроенная функция перетаскивания!
+MainFrame.Draggable = true
 
--- Заголовок с возможностью перетаскивания
+-- Заголовок
+local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Text = "🔧 Чит Меню (F1)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 Title.TextScaled = true
 
--- Кнопка закрытия (крестик)
+-- Крестик закрытия
+local CloseButton = Instance.new("TextButton")
 CloseButton.Parent = MainFrame
 CloseButton.Size = UDim2.new(0, 25, 0, 25)
 CloseButton.Position = UDim2.new(1, -30, 0, 2)
@@ -39,236 +56,233 @@ CloseButton.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
 CloseButton.BackgroundTransparency = 0.5
 CloseButton.BorderSizePixel = 0
 
--- Функция для создания кнопок с подписями
-local function CreateButton(parent, text, yPos, color, subText)
+-- Функция создания кнопок
+local function CreateButton(parent, text, yPos, color)
     local btn = Instance.new("TextButton")
     btn.Parent = parent
     btn.Size = UDim2.new(0.9, 0, 0, 28)
     btn.Position = UDim2.new(0.05, 0, 0, yPos)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BackgroundColor3 = color or Color3.fromRGB(60, 60, 70)
+    btn.BackgroundColor3 = color or Color3.fromRGB(55, 55, 70)
     btn.BorderSizePixel = 0
     btn.Font = Enum.Font.GothamMedium
     return btn
 end
 
--- Создаём кнопки
-local ESPButton = CreateButton(MainFrame, "ESP (Вкл)", 35, Color3.fromRGB(0, 150, 0))
-local AimbotButton = CreateButton(MainFrame, "Аимбот (Вкл)", 68, Color3.fromRGB(0, 150, 0))
-local FlyButton = CreateButton(MainFrame, "Полет (Вкл)", 101, Color3.fromRGB(0, 150, 0))
-local SpeedButton = CreateButton(MainFrame, "Скорость x1", 134, Color3.fromRGB(0, 150, 0))
-local TeleportButton = CreateButton(MainFrame, "Телепорт к игроку", 167, Color3.fromRGB(0, 150, 0))
+-- Кнопки
+local ESPButton = CreateButton(MainFrame, "ESP (Выкл)", 35, Color3.fromRGB(60, 60, 80))
+local AimbotButton = CreateButton(MainFrame, "Аимбот (Выкл)", 68, Color3.fromRGB(60, 60, 80))
+local FlyButton = CreateButton(MainFrame, "Полет (Выкл)", 101, Color3.fromRGB(60, 60, 80))
+local SpeedButton = CreateButton(MainFrame, "Скорость x1", 134, Color3.fromRGB(60, 60, 80))
+local TeleportButton = CreateButton(MainFrame, "Телепорт (выбрать цель)", 167, Color3.fromRGB(60, 60, 80))
 
--- Дополнительные настройки для ESP и аимбота
-local ESPSettingsLabel = Instance.new("TextLabel")
-ESPSettingsLabel.Parent = MainFrame
-ESPSettingsLabel.Size = UDim2.new(0.9, 0, 0, 20)
-ESPSettingsLabel.Position = UDim2.new(0.05, 0, 0, 200)
-ESPSettingsLabel.Text = "⚙️ Настройки ESP:"
-ESPSettingsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-ESPSettingsLabel.BackgroundTransparency = 1
-ESPSettingsLabel.TextSize = 14
+-- Настройки радиуса
+local RadiusLabel = Instance.new("TextLabel")
+RadiusLabel.Parent = MainFrame
+RadiusLabel.Size = UDim2.new(0.5, 0, 0, 20)
+RadiusLabel.Position = UDim2.new(0.05, 0, 0, 205)
+RadiusLabel.Text = "Радиус аима: 200"
+RadiusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+RadiusLabel.BackgroundTransparency = 1
+RadiusLabel.TextSize = 13
 
--- Ползунок для радиуса аимбота
-local AimbotRadiusLabel = Instance.new("TextLabel")
-AimbotRadiusLabel.Parent = MainFrame
-AimbotRadiusLabel.Size = UDim2.new(0.5, 0, 0, 20)
-AimbotRadiusLabel.Position = UDim2.new(0.05, 0, 0, 225)
-AimbotRadiusLabel.Text = "Радиус аима: 200"
-AimbotRadiusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-AimbotRadiusLabel.BackgroundTransparency = 1
-AimbotRadiusLabel.TextSize = 12
+local RadiusInput = Instance.new("TextBox")
+RadiusInput.Parent = MainFrame
+RadiusInput.Size = UDim2.new(0.25, 0, 0, 20)
+RadiusInput.Position = UDim2.new(0.6, 0, 0, 205)
+RadiusInput.Text = "200"
+RadiusInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+RadiusInput.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+RadiusInput.TextSize = 13
 
-local AimbotRadiusSlider = Instance.new("TextBox")
-AimbotRadiusSlider.Parent = MainFrame
-AimbotRadiusSlider.Size = UDim2.new(0.3, 0, 0, 20)
-AimbotRadiusSlider.Position = UDim2.new(0.6, 0, 0, 225)
-AimbotRadiusSlider.Text = "200"
-AimbotRadiusSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-AimbotRadiusSlider.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-AimbotRadiusSlider.TextSize = 12
+-- Список игроков для телепорта
+local PlayerListLabel = Instance.new("TextLabel")
+PlayerListLabel.Parent = MainFrame
+PlayerListLabel.Size = UDim2.new(0.9, 0, 0, 20)
+PlayerListLabel.Position = UDim2.new(0.05, 0, 0, 235)
+PlayerListLabel.Text = "📋 Игроки для телепорта:"
+PlayerListLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+PlayerListLabel.BackgroundTransparency = 1
+PlayerListLabel.TextSize = 13
+
+local PlayerListBox = Instance.new("ScrollingFrame")
+PlayerListBox.Parent = MainFrame
+PlayerListBox.Size = UDim2.new(0.9, 0, 0, 120)
+PlayerListBox.Position = UDim2.new(0.05, 0, 0, 258)
+PlayerListBox.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+PlayerListBox.BorderSizePixel = 0
+
+local PlayerListLayout = Instance.new("UIListLayout")
+PlayerListLayout.Parent = PlayerListBox
+PlayerListLayout.SortOrder = Enum.SortOrder.Name
 
 -- ============================================
--- 2. ПЕРЕМЕННЫЕ
+-- 3. ОБНОВЛЕНИЕ СПИСКА ИГРОКОВ (КАЖДЫЕ 5 СЕКУНД)
 -- ============================================
-local espEnabled = false
-local aimbotEnabled = false
-local flyEnabled = false
-local speedMultiplier = 1
-local aimbotRadius = 200
+local function UpdatePlayerList()
+    -- Очищаем старый список
+    for _, child in pairs(PlayerListBox:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    
+    -- Обновляем список игроков
+    playerList = {}
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            table.insert(playerList, player)
+        end
+    end
+    
+    -- Создаём кнопки для каждого игрока
+    for _, player in pairs(playerList) do
+        local btn = Instance.new("TextButton")
+        btn.Parent = PlayerListBox
+        btn.Size = UDim2.new(1, 0, 0, 25)
+        btn.Text = player.Name
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+        btn.BorderSizePixel = 0
+        btn.Font = Enum.Font.GothamMedium
+        btn.TextSize = 13
+        
+        -- При нажатии выбираем цель
+        btn.MouseButton1Click:Connect(function()
+            selectedTarget = player
+            TeleportButton.Text = "Телепорт к: " .. player.Name
+            TeleportButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        end)
+    end
+end
+
+-- Обновляем список каждые 5 секунд
+game:GetService("RunService").Heartbeat:Connect(function()
+    if tick() - lastPlayerUpdate > 5 then
+        lastPlayerUpdate = tick()
+        UpdatePlayerList()
+    end
+end)
+
+-- Первое обновление
+UpdatePlayerList()
 
 -- ============================================
--- 3. УМНЫЙ ESP (СКРЫВАЕТ ЗА СТЕНАМИ, МЕНЯЕТ ЦВЕТ)
+-- 4. ESP (РАБОТАЕТ И МЕНЯЕТ ЦВЕТ)
 -- ============================================
 local espObjects = {}
-local espLines = {}
 
--- Функция проверки видимости (Raycast)
 local function IsVisible(origin, target)
-    local ray = Ray.new(origin, (target - origin).Unit * (origin - target).Magnitude)
-    local hit, position = workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
+    local direction = (target - origin).Unit
+    local distance = (origin - target).Magnitude
+    local ray = Ray.new(origin, direction * distance)
+    local hit, pos = workspace:FindPartOnRay(ray, LocalPlayer.Character)
     
-    if hit and hit:IsDescendantOf(target.Parent) then
-        return true  -- Цель видна напрямую
+    if hit then
+        -- Проверяем, является ли препятствие частью цели
+        if hit:IsDescendantOf(target.Parent) then
+            return true
+        end
+        return false
     end
-    return false
+    return true
 end
 
--- Функция создания ESP для игрока
-local function CreateESP(player)
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-    
-    local rootPart = player.Character.HumanoidRootPart
-    local localPlayer = game.Players.LocalPlayer
-    local camera = workspace.CurrentCamera
-    
-    -- Проверяем видимость
-    local visible = IsVisible(camera.CFrame.Position, rootPart.Position)
-    
-    -- Выбираем цвет: красный (за стеной) или зелёный (видим)
-    local espColor = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-    
-    -- Создаём рамку вокруг игрока
-    local box = Instance.new("BoxHandleAdornment")
-    box.Size = Vector3.new(3.5, 5.5, 2)
-    box.Adornee = rootPart
-    box.Color3 = espColor
-    box.Transparency = 0.4
-    box.ZIndex = 10
-    box.Parent = rootPart
-    
-    -- Создаём линию до игрока (трассер)
-    local line = Instance.new("SelectionBox")
-    line.Adornee = rootPart
-    line.Color3 = espColor
-    line.LineThickness = 0.15
-    line.Transparency = 0.3
-    line.Parent = rootPart
-    
-    -- Добавляем в списки
-    table.insert(espObjects, box)
-    table.insert(espObjects, line)
-end
-
--- Обновление ESP
 local function UpdateESP()
-    -- Удаляем старые объекты
+    -- Удаляем старые ESP объекты
     for _, obj in pairs(espObjects) do
-        obj:Destroy()
+        pcall(function() obj:Destroy() end)
     end
     espObjects = {}
     
     if not espEnabled then return end
     
-    -- Создаём ESP для всех игроков
     for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= game.Players.LocalPlayer and player.Character then
-            CreateESP(player)
-        end
-    end
-end
-
--- Постоянное обновление цветов (каждый кадр)
-game:GetService("RunService").RenderStepped:Connect(function()
-    if not espEnabled then return end
-    
-    local camera = workspace.CurrentCamera
-    local localPlayer = game.Players.LocalPlayer
-    
-    -- Обновляем ESP-объекты для каждого игрока
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character then
-            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                -- Проверяем видимость
-                local visible = IsVisible(camera.CFrame.Position, rootPart.Position)
-                local espColor = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+        if player ~= LocalPlayer and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local visible = IsVisible(Camera.CFrame.Position, root.Position)
+                local color = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
                 
-                -- Обновляем цвет всех ESP-объектов этого игрока
-                for _, obj in pairs(rootPart:GetChildren()) do
-                    if obj:IsA("BoxHandleAdornment") or obj:IsA("SelectionBox") then
-                        obj.Color3 = espColor
-                    end
-                end
+                -- Рамка
+                local box = Instance.new("BoxHandleAdornment")
+                box.Size = Vector3.new(3.5, 5.5, 2)
+                box.Adornee = root
+                box.Color3 = color
+                box.Transparency = 0.3
+                box.ZIndex = 10
+                box.Parent = root
+                table.insert(espObjects, box)
+                
+                -- Линия
+                local line = Instance.new("SelectionBox")
+                line.Adornee = root
+                line.Color3 = color
+                line.LineThickness = 0.1
+                line.Transparency = 0.3
+                line.Parent = root
+                table.insert(espObjects, line)
             end
         end
     end
-end)
+end
 
 -- ============================================
--- 4. УМНЫЙ АИМБОТ С РАДИУСОМ И КРУГОМ
+-- 5. АИМБОТ (С КРУГОМ И РАДИУСОМ)
 -- ============================================
+local aimbotCircle = Instance.new("ImageLabel")
+aimbotCircle.Parent = ScreenGui
+aimbotCircle.Size = UDim2.new(0, 400, 0, 400)
+aimbotCircle.Position = UDim2.new(0.5, -200, 0.5, -200)
+aimbotCircle.BackgroundTransparency = 1
+aimbotCircle.Image = "rbxassetid://7074833319"
+aimbotCircle.ImageColor3 = Color3.fromRGB(255, 255, 255)
+aimbotCircle.ImageTransparency = 0.8
+aimbotCircle.Visible = false
+aimbotCircle.ZIndex = 999
 
--- Создаём круг для аимбота (визуальный индикатор)
-local AimbotCircle = Instance.new("ImageLabel")
-AimbotCircle.Parent = ScreenGui
-AimbotCircle.Size = UDim2.new(0, aimbotRadius * 2, 0, aimbotRadius * 2)
-AimbotCircle.Position = UDim2.new(0.5, -aimbotRadius, 0.5, -aimbotRadius)
-AimbotCircle.BackgroundTransparency = 1
-AimbotCircle.Image = "rbxassetid://7074833319"  -- Круглая текстура
-AimbotCircle.ImageColor3 = Color3.fromRGB(255, 255, 255)
-AimbotCircle.ImageTransparency = 0.7
-AimbotCircle.Visible = false  -- По умолчанию скрыт
-
--- Обновление круга при изменении радиуса
-AimbotRadiusSlider.FocusLost:Connect(function()
-    local newRadius = tonumber(AimbotRadiusSlider.Text)
-    if newRadius and newRadius > 0 then
-        aimbotRadius = newRadius
-        AimbotCircle.Size = UDim2.new(0, aimbotRadius * 2, 0, aimbotRadius * 2)
-        AimbotCircle.Position = UDim2.new(0.5, -aimbotRadius, 0.5, -aimbotRadius)
-        AimbotRadiusLabel.Text = "Радиус аима: " .. aimbotRadius
+-- Обновление круга
+RadiusInput.FocusLost:Connect(function()
+    local val = tonumber(RadiusInput.Text)
+    if val and val > 0 and val < 1000 then
+        aimbotRadius = val
+        local size = aimbotRadius * 2
+        aimbotCircle.Size = UDim2.new(0, size, 0, size)
+        aimbotCircle.Position = UDim2.new(0.5, -aimbotRadius, 0.5, -aimbotRadius)
+        RadiusLabel.Text = "Радиус аима: " .. aimbotRadius
     else
-        AimbotRadiusSlider.Text = tostring(aimbotRadius)
+        RadiusInput.Text = tostring(aimbotRadius)
     end
 end)
 
--- Показывать/скрывать круг вместе с аимботом
-local function ToggleAimbot()
-    aimbotEnabled = not aimbotEnabled
-    AimbotButton.Text = aimbotEnabled and "Аимбот (Выкл)" or "Аимбот (Вкл)"
-    AimbotButton.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 150, 0)
-    AimbotCircle.Visible = aimbotEnabled
-end
-
--- Функция поиска ближайшего игрока в радиусе
 local function GetClosestPlayerInRadius()
-    local localPlayer = game.Players.LocalPlayer
-    local character = localPlayer.Character
+    local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
         return nil
     end
     
     local closest = nil
     local closestDist = aimbotRadius
-    local camera = workspace.CurrentCamera
-    
-    -- Получаем центр экрана для расчета угла
-    local viewportSize = camera.ViewportSize
-    local centerScreen = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local centerScreen = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
     for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local rootPart = player.Character.HumanoidRootPart
-            
-            -- Проверяем, видим ли игрока (не за стеной)
-            local visible = IsVisible(camera.CFrame.Position, rootPart.Position)
-            if not visible then continue end  -- Пропускаем невидимых
-            
-            -- Проецируем позицию игрока на экран
-            local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
-            if not onScreen then continue end
-            
-            -- Считаем расстояние от центра экрана до игрока (в пикселях)
-            local distFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
-            
-            -- Проверяем, попадает ли в радиус
-            if distFromCenter < closestDist then
-                closest = player
-                closestDist = distFromCenter
+        if player ~= LocalPlayer and player.Character then
+            local root = player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                -- Проверяем видимость (только видимых)
+                if not IsVisible(Camera.CFrame.Position, root.Position) then
+                    continue
+                end
+                
+                local screenPos, onScreen = Camera:WorldToScreenPoint(root.Position)
+                if not onScreen then continue end
+                
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
+                if dist < closestDist then
+                    closest = player
+                    closestDist = dist
+                end
             end
         end
     end
@@ -276,81 +290,76 @@ local function GetClosestPlayerInRadius()
     return closest
 end
 
--- Функция наведения на цель
 local function AimAtPlayer(player)
     if not player or not player.Character then
         return
     end
     
-    local camera = workspace.CurrentCamera
-    local targetPos = player.Character:FindFirstChild("Head") and player.Character.Head.Position or player.Character.HumanoidRootPart.Position
+    local target = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+    if not target then return end
     
-    -- Плавное наведение (скорость 0.4)
-    local vector = (targetPos - camera.CFrame.Position).Unit
-    local newCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
-    camera.CFrame = camera.CFrame:Lerp(newCFrame, 0.4)
+    local targetPos = target.Position
+    local newCFrame = CFrame.lookAt(Camera.CFrame.Position, targetPos)
+    Camera.CFrame = Camera.CFrame:Lerp(newCFrame, 0.5)
 end
 
 -- ============================================
--- 5. ПОЛЁТ (УЛУЧШЕННЫЙ)
+-- 6. ПОЛЁТ
 -- ============================================
-local flyVelocity = nil
+local flyBodyVelocity = nil
 local flyConnection = nil
 
 local function ToggleFly()
     flyEnabled = not flyEnabled
-    FlyButton.Text = flyEnabled and "Полет (Выкл)" or "Полет (Вкл)"
-    FlyButton.BackgroundColor3 = flyEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 150, 0)
+    FlyButton.Text = flyEnabled and "Полет (Вкл)" or "Полет (Выкл)"
+    FlyButton.BackgroundColor3 = flyEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 80)
     
-    local character = game.Players.LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
+    local character = LocalPlayer.Character
+    if not character then return end
     
     if flyEnabled then
         character.Humanoid.PlatformStand = true
-        flyVelocity = Instance.new("BodyVelocity")
-        flyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        flyVelocity.Velocity = Vector3.new(0, 0, 0)
-        flyVelocity.Parent = character.HumanoidRootPart
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.Parent = character.HumanoidRootPart
         
-        -- Управление через WASD
-        flyConnection = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        flyConnection = UserInput.InputBegan:Connect(function(input, gameProcessed)
             if gameProcessed then return end
-            if not flyEnabled or not flyVelocity then return end
+            if not flyEnabled or not flyBodyVelocity then return end
             
-            local char = game.Players.LocalPlayer.Character
-            if not char then return end
+            local char = LocalPlayer.Character
+            if not char or not char.HumanoidRootPart then return end
             
-            local moveVector = Vector3.new(0, 0, 0)
+            local move = Vector3.new(0, 0, 0)
             local speed = 60
             
             if input.KeyCode == Enum.KeyCode.W then
-                moveVector = moveVector + char.HumanoidRootPart.CFrame.LookVector * speed
+                move = move + char.HumanoidRootPart.CFrame.LookVector * speed
             end
             if input.KeyCode == Enum.KeyCode.S then
-                moveVector = moveVector - char.HumanoidRootPart.CFrame.LookVector * speed
+                move = move - char.HumanoidRootPart.CFrame.LookVector * speed
             end
             if input.KeyCode == Enum.KeyCode.A then
-                moveVector = moveVector - char.HumanoidRootPart.CFrame.RightVector * speed
+                move = move - char.HumanoidRootPart.CFrame.RightVector * speed
             end
             if input.KeyCode == Enum.KeyCode.D then
-                moveVector = moveVector + char.HumanoidRootPart.CFrame.RightVector * speed
+                move = move + char.HumanoidRootPart.CFrame.RightVector * speed
             end
             if input.KeyCode == Enum.KeyCode.Space then
-                moveVector = moveVector + Vector3.new(0, speed, 0)
+                move = move + Vector3.new(0, speed, 0)
             end
             if input.KeyCode == Enum.KeyCode.LeftShift then
-                moveVector = moveVector - Vector3.new(0, speed, 0)
+                move = move - Vector3.new(0, speed, 0)
             end
             
-            flyVelocity.Velocity = moveVector
+            flyBodyVelocity.Velocity = move
         end)
     else
         character.Humanoid.PlatformStand = false
-        if flyVelocity then
-            flyVelocity:Destroy()
-            flyVelocity = nil
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
         end
         if flyConnection then
             flyConnection:Disconnect()
@@ -360,15 +369,11 @@ local function ToggleFly()
 end
 
 -- ============================================
--- 6. ОСТАЛЬНЫЕ ФУНКЦИИ
+-- 7. СКОРОСТЬ
 -- ============================================
-
--- Скорость
 local function ToggleSpeed()
-    local character = game.Players.LocalPlayer.Character
-    if not character or not character:FindFirstChild("Humanoid") then
-        return
-    end
+    local character = LocalPlayer.Character
+    if not character then return end
     
     if speedMultiplier == 1 then
         speedMultiplier = 2
@@ -382,53 +387,65 @@ local function ToggleSpeed()
     end
 end
 
--- Телепорт
+-- ============================================
+-- 8. ТЕЛЕПОРТ
+-- ============================================
 local function TeleportToPlayer(player)
-    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+    if not player or not player.Character then
         return
     end
     
-    local localPlayer = game.Players.LocalPlayer
-    local character = localPlayer.Character
+    local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
-    local targetRoot = player.Character.HumanoidRootPart
-    local behind = targetRoot.Position - targetRoot.CFrame.LookVector * 4
+    local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then return end
     
+    local behind = targetRoot.Position - targetRoot.CFrame.LookVector * 4
     character.HumanoidRootPart.CFrame = CFrame.new(behind)
 end
 
-local function SelectTeleportTarget()
-    TeleportToPlayer(GetClosestPlayerInRadius() or GetClosestPlayer())
+local function DoTeleport()
+    if selectedTarget then
+        TeleportToPlayer(selectedTarget)
+    else
+        -- Если цель не выбрана, телепортируем к ближайшему
+        local closest = GetClosestPlayerInRadius()
+        if closest then
+            TeleportToPlayer(closest)
+        end
+    end
 end
 
 -- ============================================
--- 7. ПОДКЛЮЧЕНИЕ КНОПОК
+-- 9. ПОДКЛЮЧЕНИЕ КНОПОК
 -- ============================================
 ESPButton.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
-    ESPButton.Text = espEnabled and "ESP (Выкл)" or "ESP (Вкл)"
-    ESPButton.BackgroundColor3 = espEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 150, 0)
+    ESPButton.Text = espEnabled and "ESP (Вкл)" or "ESP (Выкл)"
+    ESPButton.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 80)
     UpdateESP()
 end)
 
-AimbotButton.MouseButton1Click:Connect(ToggleAimbot)
+AimbotButton.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    AimbotButton.Text = aimbotEnabled and "Аимбот (Вкл)" or "Аимбот (Выкл)"
+    AimbotButton.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 80)
+    aimbotCircle.Visible = aimbotEnabled
+end)
 
 FlyButton.MouseButton1Click:Connect(ToggleFly)
-
 SpeedButton.MouseButton1Click:Connect(ToggleSpeed)
+TeleportButton.MouseButton1Click:Connect(DoTeleport)
 
-TeleportButton.MouseButton1Click:Connect(SelectTeleportTarget)
-
--- Закрытие меню
 CloseButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
 end)
 
--- Показать меню по F1
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+-- Показать/скрыть меню по F1
+UserInput.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.F1 then
         MainFrame.Visible = not MainFrame.Visible
@@ -436,9 +453,33 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
 end)
 
 -- ============================================
--- 8. ОСНОВНОЙ ЦИКЛ (Аимбот работает постоянно)
+-- 10. ОСНОВНЫЕ ЦИКЛЫ
 -- ============================================
-game:GetService("RunService").RenderStepped:Connect(function()
+
+-- Обновление ESP (каждый кадр)
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        -- Обновляем цвета ESP в реальном времени
+        for _, player in pairs(game.Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local visible = IsVisible(Camera.CFrame.Position, root.Position)
+                    local color = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                    
+                    for _, obj in pairs(root:GetChildren()) do
+                        if obj:IsA("BoxHandleAdornment") or obj:IsA("SelectionBox") then
+                            obj.Color3 = color
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Аимбот (каждый кадр)
+RunService.RenderStepped:Connect(function()
     if aimbotEnabled then
         local target = GetClosestPlayerInRadius()
         if target then
@@ -447,6 +488,29 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
-print("✅ Улучшенный чит загружен! Нажми F1 для меню.")
-print("🎯 ESP: Зелёный = видим, Красный = за стеной")
-print("🔄 GUI можно перетаскивать за заголовок")
+-- ============================================
+-- 11. ВОССТАНОВЛЕНИЕ ПОСЛЕ СМЕРТИ
+-- ============================================
+LocalPlayer.CharacterAdded:Connect(function()
+    -- Восстанавливаем скорость
+    local character = LocalPlayer.Character
+    if character then
+        wait(0.5)
+        if speedMultiplier == 2 then
+            character.Humanoid.WalkSpeed = 32
+        else
+            character.Humanoid.WalkSpeed = 16
+        end
+    end
+    
+    -- Восстанавливаем ESP
+    if espEnabled then
+        wait(0.5)
+        UpdateESP()
+    end
+end)
+
+print("✅ Чит загружен! Нажми F1 для меню.")
+print("📋 Список игроков обновляется каждые 5 секунд.")
+print("🎯 ESP: Зелёный = видим, Красный = за стеной.")
+print("🔄 GUI можно перетаскивать за заголовок.")
