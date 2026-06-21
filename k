@@ -1,93 +1,161 @@
 -- ============================================
--- УНИВЕРСАЛЬНЫЙ ЧИТ-СКРИПТ (УЧЕБНАЯ ВЕРСИЯ)
+-- УЛУЧШЕННЫЙ ЧИТ-СКРИПТ (С ДВИГАЕМЫМ GUI И УМНЫМ ESP)
 -- ============================================
 
--- 1. СОЗДАЁМ ГЛАВНОЕ МЕНЮ (GUI)
+-- ============================================
+-- 1. ДВИГАЕМОЕ GUI МЕНЮ
+-- ============================================
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
-local ESPButton = Instance.new("TextButton")
-local AimbotButton = Instance.new("TextButton")
-local FlyButton = Instance.new("TextButton")
-local SpeedButton = Instance.new("TextButton")
-local TeleportButton = Instance.new("TextButton")
+local DragButton = Instance.new("TextButton")  -- Кнопка для перетаскивания
+local CloseButton = Instance.new("TextButton") -- Кнопка закрытия
 
--- Настройка внешнего вида меню
+-- Настройка главного окна
 ScreenGui.Parent = game.Players.LocalPlayer.PlayerGui
 MainFrame.Parent = ScreenGui
-MainFrame.Size = UDim2.new(0, 200, 0, 300)
-MainFrame.Position = UDim2.new(0, 10, 0, 10)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.BackgroundTransparency = 0.2
+MainFrame.Size = UDim2.new(0, 220, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -190) -- По центру экрана
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BackgroundTransparency = 0.15
+MainFrame.Active = true
+MainFrame.Draggable = true  -- Встроенная функция перетаскивания!
 
+-- Заголовок с возможностью перетаскивания
 Title.Parent = MainFrame
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "ЧИТ МЕНЮ (F1 для скрытия)"
+Title.Text = "🔧 Чит Меню (F1)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+Title.TextScaled = true
 
--- Функция для создания кнопок
-local function CreateButton(parent, text, yPos, color)
+-- Кнопка закрытия (крестик)
+CloseButton.Parent = MainFrame
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Position = UDim2.new(1, -30, 0, 2)
+CloseButton.Text = "✕"
+CloseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseButton.BackgroundColor3 = Color3.fromRGB(60, 0, 0)
+CloseButton.BackgroundTransparency = 0.5
+CloseButton.BorderSizePixel = 0
+
+-- Функция для создания кнопок с подписями
+local function CreateButton(parent, text, yPos, color, subText)
     local btn = Instance.new("TextButton")
     btn.Parent = parent
-    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Size = UDim2.new(0.9, 0, 0, 28)
     btn.Position = UDim2.new(0.05, 0, 0, yPos)
     btn.Text = text
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BackgroundColor3 = color or Color3.fromRGB(70, 70, 70)
+    btn.BackgroundColor3 = color or Color3.fromRGB(60, 60, 70)
     btn.BorderSizePixel = 0
+    btn.Font = Enum.Font.GothamMedium
     return btn
 end
 
-ESPButton = CreateButton(MainFrame, "ESP (Вкл)", 35, Color3.fromRGB(0, 150, 0))
-AimbotButton = CreateButton(MainFrame, "Аимбот (Вкл)", 70, Color3.fromRGB(0, 150, 0))
-FlyButton = CreateButton(MainFrame, "Полет (Вкл)", 105, Color3.fromRGB(0, 150, 0))
-SpeedButton = CreateButton(MainFrame, "Скорость x2", 140, Color3.fromRGB(0, 150, 0))
-TeleportButton = CreateButton(MainFrame, "Телепорт к игроку", 175, Color3.fromRGB(0, 150, 0))
+-- Создаём кнопки
+local ESPButton = CreateButton(MainFrame, "ESP (Вкл)", 35, Color3.fromRGB(0, 150, 0))
+local AimbotButton = CreateButton(MainFrame, "Аимбот (Вкл)", 68, Color3.fromRGB(0, 150, 0))
+local FlyButton = CreateButton(MainFrame, "Полет (Вкл)", 101, Color3.fromRGB(0, 150, 0))
+local SpeedButton = CreateButton(MainFrame, "Скорость x1", 134, Color3.fromRGB(0, 150, 0))
+local TeleportButton = CreateButton(MainFrame, "Телепорт к игроку", 167, Color3.fromRGB(0, 150, 0))
+
+-- Дополнительные настройки для ESP и аимбота
+local ESPSettingsLabel = Instance.new("TextLabel")
+ESPSettingsLabel.Parent = MainFrame
+ESPSettingsLabel.Size = UDim2.new(0.9, 0, 0, 20)
+ESPSettingsLabel.Position = UDim2.new(0.05, 0, 0, 200)
+ESPSettingsLabel.Text = "⚙️ Настройки ESP:"
+ESPSettingsLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+ESPSettingsLabel.BackgroundTransparency = 1
+ESPSettingsLabel.TextSize = 14
+
+-- Ползунок для радиуса аимбота
+local AimbotRadiusLabel = Instance.new("TextLabel")
+AimbotRadiusLabel.Parent = MainFrame
+AimbotRadiusLabel.Size = UDim2.new(0.5, 0, 0, 20)
+AimbotRadiusLabel.Position = UDim2.new(0.05, 0, 0, 225)
+AimbotRadiusLabel.Text = "Радиус аима: 200"
+AimbotRadiusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+AimbotRadiusLabel.BackgroundTransparency = 1
+AimbotRadiusLabel.TextSize = 12
+
+local AimbotRadiusSlider = Instance.new("TextBox")
+AimbotRadiusSlider.Parent = MainFrame
+AimbotRadiusSlider.Size = UDim2.new(0.3, 0, 0, 20)
+AimbotRadiusSlider.Position = UDim2.new(0.6, 0, 0, 225)
+AimbotRadiusSlider.Text = "200"
+AimbotRadiusSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+AimbotRadiusSlider.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+AimbotRadiusSlider.TextSize = 12
 
 -- ============================================
--- 2. ПЕРЕМЕННЫЕ ДЛЯ НАСТРОЕК
+-- 2. ПЕРЕМЕННЫЕ
 -- ============================================
 local espEnabled = false
 local aimbotEnabled = false
 local flyEnabled = false
 local speedMultiplier = 1
-local targetPlayer = nil
+local aimbotRadius = 200
 
 -- ============================================
--- 3. ESP (ВИДЕТЬ ВСЕХ СКВОЗЬ СТЕНЫ)
+-- 3. УМНЫЙ ESP (СКРЫВАЕТ ЗА СТЕНАМИ, МЕНЯЕТ ЦВЕТ)
 -- ============================================
 local espObjects = {}
+local espLines = {}
 
+-- Функция проверки видимости (Raycast)
+local function IsVisible(origin, target)
+    local ray = Ray.new(origin, (target - origin).Unit * (origin - target).Magnitude)
+    local hit, position = workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
+    
+    if hit and hit:IsDescendantOf(target.Parent) then
+        return true  -- Цель видна напрямую
+    end
+    return false
+end
+
+-- Функция создания ESP для игрока
 local function CreateESP(player)
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
+    local rootPart = player.Character.HumanoidRootPart
+    local localPlayer = game.Players.LocalPlayer
+    local camera = workspace.CurrentCamera
+    
+    -- Проверяем видимость
+    local visible = IsVisible(camera.CFrame.Position, rootPart.Position)
+    
+    -- Выбираем цвет: красный (за стеной) или зелёный (видим)
+    local espColor = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    
     -- Создаём рамку вокруг игрока
     local box = Instance.new("BoxHandleAdornment")
-    box.Size = Vector3.new(4, 6, 2)  -- Размер под человека
-    box.Adornee = player.Character.HumanoidRootPart
-    box.Color3 = player.TeamColor and player.TeamColor.Color or Color3.fromRGB(255, 0, 0)
-    box.Transparency = 0.5
+    box.Size = Vector3.new(3.5, 5.5, 2)
+    box.Adornee = rootPart
+    box.Color3 = espColor
+    box.Transparency = 0.4
     box.ZIndex = 10
-    box.Parent = player.Character.HumanoidRootPart
+    box.Parent = rootPart
     
     -- Создаём линию до игрока (трассер)
-    local tracer = Instance.new("SelectionBox")
-    tracer.Adornee = player.Character.HumanoidRootPart
-    tracer.Color3 = Color3.fromRGB(0, 255, 0)
-    tracer.LineThickness = 0.1
-    tracer.Transparency = 0.5
-    tracer.Parent = player.Character.HumanoidRootPart
+    local line = Instance.new("SelectionBox")
+    line.Adornee = rootPart
+    line.Color3 = espColor
+    line.LineThickness = 0.15
+    line.Transparency = 0.3
+    line.Parent = rootPart
     
-    -- Добавляем в список для удаления
+    -- Добавляем в списки
     table.insert(espObjects, box)
-    table.insert(espObjects, tracer)
+    table.insert(espObjects, line)
 end
 
+-- Обновление ESP
 local function UpdateESP()
-    -- Удаляем старые ESP-объекты
+    -- Удаляем старые объекты
     for _, obj in pairs(espObjects) do
         obj:Destroy()
     end
@@ -103,10 +171,71 @@ local function UpdateESP()
     end
 end
 
+-- Постоянное обновление цветов (каждый кадр)
+game:GetService("RunService").RenderStepped:Connect(function()
+    if not espEnabled then return end
+    
+    local camera = workspace.CurrentCamera
+    local localPlayer = game.Players.LocalPlayer
+    
+    -- Обновляем ESP-объекты для каждого игрока
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                -- Проверяем видимость
+                local visible = IsVisible(camera.CFrame.Position, rootPart.Position)
+                local espColor = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                
+                -- Обновляем цвет всех ESP-объектов этого игрока
+                for _, obj in pairs(rootPart:GetChildren()) do
+                    if obj:IsA("BoxHandleAdornment") or obj:IsA("SelectionBox") then
+                        obj.Color3 = espColor
+                    end
+                end
+            end
+        end
+    end
+end)
+
 -- ============================================
--- 4. АИМБОТ (АВТОПРИЦЕЛИВАНИЕ)
+-- 4. УМНЫЙ АИМБОТ С РАДИУСОМ И КРУГОМ
 -- ============================================
-local function GetClosestPlayer()
+
+-- Создаём круг для аимбота (визуальный индикатор)
+local AimbotCircle = Instance.new("ImageLabel")
+AimbotCircle.Parent = ScreenGui
+AimbotCircle.Size = UDim2.new(0, aimbotRadius * 2, 0, aimbotRadius * 2)
+AimbotCircle.Position = UDim2.new(0.5, -aimbotRadius, 0.5, -aimbotRadius)
+AimbotCircle.BackgroundTransparency = 1
+AimbotCircle.Image = "rbxassetid://7074833319"  -- Круглая текстура
+AimbotCircle.ImageColor3 = Color3.fromRGB(255, 255, 255)
+AimbotCircle.ImageTransparency = 0.7
+AimbotCircle.Visible = false  -- По умолчанию скрыт
+
+-- Обновление круга при изменении радиуса
+AimbotRadiusSlider.FocusLost:Connect(function()
+    local newRadius = tonumber(AimbotRadiusSlider.Text)
+    if newRadius and newRadius > 0 then
+        aimbotRadius = newRadius
+        AimbotCircle.Size = UDim2.new(0, aimbotRadius * 2, 0, aimbotRadius * 2)
+        AimbotCircle.Position = UDim2.new(0.5, -aimbotRadius, 0.5, -aimbotRadius)
+        AimbotRadiusLabel.Text = "Радиус аима: " .. aimbotRadius
+    else
+        AimbotRadiusSlider.Text = tostring(aimbotRadius)
+    end
+end)
+
+-- Показывать/скрывать круг вместе с аимботом
+local function ToggleAimbot()
+    aimbotEnabled = not aimbotEnabled
+    AimbotButton.Text = aimbotEnabled and "Аимбот (Выкл)" or "Аимбот (Вкл)"
+    AimbotButton.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 150, 0)
+    AimbotCircle.Visible = aimbotEnabled
+end
+
+-- Функция поиска ближайшего игрока в радиусе
+local function GetClosestPlayerInRadius()
     local localPlayer = game.Players.LocalPlayer
     local character = localPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then
@@ -114,21 +243,32 @@ local function GetClosestPlayer()
     end
     
     local closest = nil
-    local closestDist = math.huge
-    local root = character.HumanoidRootPart
+    local closestDist = aimbotRadius
+    local camera = workspace.CurrentCamera
+    
+    -- Получаем центр экрана для расчета угла
+    local viewportSize = camera.ViewportSize
+    local centerScreen = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
     
     for _, player in pairs(game.Players:GetPlayers()) do
         if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local targetRoot = player.Character.HumanoidRootPart
-            local dist = (root.Position - targetRoot.Position).Magnitude
+            local rootPart = player.Character.HumanoidRootPart
             
             -- Проверяем, видим ли игрока (не за стеной)
-            local ray = Ray.new(root.Position, (targetRoot.Position - root.Position).Unit * dist)
-            local hit = workspace:FindPartOnRay(ray, character)
+            local visible = IsVisible(camera.CFrame.Position, rootPart.Position)
+            if not visible then continue end  -- Пропускаем невидимых
             
-            if hit and (hit:IsDescendantOf(player.Character) or dist < closestDist) then
+            -- Проецируем позицию игрока на экран
+            local screenPos, onScreen = camera:WorldToScreenPoint(rootPart.Position)
+            if not onScreen then continue end
+            
+            -- Считаем расстояние от центра экрана до игрока (в пикселях)
+            local distFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
+            
+            -- Проверяем, попадает ли в радиус
+            if distFromCenter < closestDist then
                 closest = player
-                closestDist = dist
+                closestDist = distFromCenter
             end
         end
     end
@@ -136,35 +276,26 @@ local function GetClosestPlayer()
     return closest
 end
 
--- Функция для наведения на цель
+-- Функция наведения на цель
 local function AimAtPlayer(player)
-    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+    if not player or not player.Character then
         return
     end
     
-    local localPlayer = game.Players.LocalPlayer
-    local character = localPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then
-        return
-    end
-    
-    -- Получаем позицию головы врага
-    local head = player.Character:FindFirstChild("Head") or player.Character.HumanoidRootPart
-    local targetPos = head.Position
-    
-    -- Вычисляем угол для наведения
     local camera = workspace.CurrentCamera
+    local targetPos = player.Character:FindFirstChild("Head") and player.Character.Head.Position or player.Character.HumanoidRootPart.Position
+    
+    -- Плавное наведение (скорость 0.4)
     local vector = (targetPos - camera.CFrame.Position).Unit
     local newCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
-    
-    -- Плавно наводим прицел (чтобы не спалиться)
-    camera.CFrame = camera.CFrame:Lerp(newCFrame, 0.3)
+    camera.CFrame = camera.CFrame:Lerp(newCFrame, 0.4)
 end
 
 -- ============================================
--- 5. ПОЛЁТ (FLY)
+-- 5. ПОЛЁТ (УЛУЧШЕННЫЙ)
 -- ============================================
 local flyVelocity = nil
+local flyConnection = nil
 
 local function ToggleFly()
     flyEnabled = not flyEnabled
@@ -177,59 +308,62 @@ local function ToggleFly()
     end
     
     if flyEnabled then
-        -- Убираем гравитацию
         character.Humanoid.PlatformStand = true
         flyVelocity = Instance.new("BodyVelocity")
         flyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
         flyVelocity.Velocity = Vector3.new(0, 0, 0)
         flyVelocity.Parent = character.HumanoidRootPart
+        
+        -- Управление через WASD
+        flyConnection = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if not flyEnabled or not flyVelocity then return end
+            
+            local char = game.Players.LocalPlayer.Character
+            if not char then return end
+            
+            local moveVector = Vector3.new(0, 0, 0)
+            local speed = 60
+            
+            if input.KeyCode == Enum.KeyCode.W then
+                moveVector = moveVector + char.HumanoidRootPart.CFrame.LookVector * speed
+            end
+            if input.KeyCode == Enum.KeyCode.S then
+                moveVector = moveVector - char.HumanoidRootPart.CFrame.LookVector * speed
+            end
+            if input.KeyCode == Enum.KeyCode.A then
+                moveVector = moveVector - char.HumanoidRootPart.CFrame.RightVector * speed
+            end
+            if input.KeyCode == Enum.KeyCode.D then
+                moveVector = moveVector + char.HumanoidRootPart.CFrame.RightVector * speed
+            end
+            if input.KeyCode == Enum.KeyCode.Space then
+                moveVector = moveVector + Vector3.new(0, speed, 0)
+            end
+            if input.KeyCode == Enum.KeyCode.LeftShift then
+                moveVector = moveVector - Vector3.new(0, speed, 0)
+            end
+            
+            flyVelocity.Velocity = moveVector
+        end)
     else
-        -- Возвращаем гравитацию
         character.Humanoid.PlatformStand = false
         if flyVelocity then
             flyVelocity:Destroy()
             flyVelocity = nil
         end
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
     end
 end
 
--- Управление полётом (WASD + пробел)
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if not flyEnabled or not flyVelocity then return end
-    
-    local character = game.Players.LocalPlayer.Character
-    if not character then return end
-    
-    local moveVector = Vector3.new(0, 0, 0)
-    local speed = 50
-    
-    -- Клавиши управления
-    if input.KeyCode == Enum.KeyCode.W then
-        moveVector = moveVector + character.HumanoidRootPart.CFrame.LookVector * speed
-    end
-    if input.KeyCode == Enum.KeyCode.S then
-        moveVector = moveVector - character.HumanoidRootPart.CFrame.LookVector * speed
-    end
-    if input.KeyCode == Enum.KeyCode.A then
-        moveVector = moveVector - character.HumanoidRootPart.CFrame.RightVector * speed
-    end
-    if input.KeyCode == Enum.KeyCode.D then
-        moveVector = moveVector + character.HumanoidRootPart.CFrame.RightVector * speed
-    end
-    if input.KeyCode == Enum.KeyCode.Space then
-        moveVector = moveVector + Vector3.new(0, speed, 0)
-    end
-    if input.KeyCode == Enum.KeyCode.LeftShift then
-        moveVector = moveVector - Vector3.new(0, speed, 0)
-    end
-    
-    flyVelocity.Velocity = moveVector
-end)
+-- ============================================
+-- 6. ОСТАЛЬНЫЕ ФУНКЦИИ
+-- ============================================
 
--- ============================================
--- 6. СКОРОСТЬ (SPEED HACK)
--- ============================================
+-- Скорость
 local function ToggleSpeed()
     local character = game.Players.LocalPlayer.Character
     if not character or not character:FindFirstChild("Humanoid") then
@@ -239,7 +373,7 @@ local function ToggleSpeed()
     if speedMultiplier == 1 then
         speedMultiplier = 2
         SpeedButton.Text = "Скорость x3"
-        character.Humanoid.WalkSpeed = 32  -- Стандартная скорость 16
+        character.Humanoid.WalkSpeed = 32
     elseif speedMultiplier == 2 then
         speedMultiplier = 3
         SpeedButton.Text = "Скорость x1"
@@ -248,9 +382,7 @@ local function ToggleSpeed()
     end
 end
 
--- ============================================
--- 7. ТЕЛЕПОРТ К ИГРОКУ
--- ============================================
+-- Телепорт
 local function TeleportToPlayer(player)
     if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
         return
@@ -262,29 +394,18 @@ local function TeleportToPlayer(player)
         return
     end
     
-    -- Телепортируемся за спину врага
     local targetRoot = player.Character.HumanoidRootPart
-    local behind = targetRoot.Position - targetRoot.CFrame.LookVector * 3
+    local behind = targetRoot.Position - targetRoot.CFrame.LookVector * 4
     
     character.HumanoidRootPart.CFrame = CFrame.new(behind)
 end
 
--- Выбор цели для телепорта (по нажатию на имя в чате)
 local function SelectTeleportTarget()
-    local players = {}
-    for i, player in pairs(game.Players:GetPlayers()) do
-        if player ~= game.Players.LocalPlayer then
-            table.insert(players, i .. ". " .. player.Name)
-        end
-    end
-    
-    -- В реальном чите здесь было бы GUI меню выбора
-    -- Для примера просто телепортируемся к ближайшему
-    TeleportToPlayer(GetClosestPlayer())
+    TeleportToPlayer(GetClosestPlayerInRadius() or GetClosestPlayer())
 end
 
 -- ============================================
--- 8. ПОДКЛЮЧЕНИЕ КНОПОК К ФУНКЦИЯМ
+-- 7. ПОДКЛЮЧЕНИЕ КНОПОК
 -- ============================================
 ESPButton.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -293,11 +414,7 @@ ESPButton.MouseButton1Click:Connect(function()
     UpdateESP()
 end)
 
-AimbotButton.MouseButton1Click:Connect(function()
-    aimbotEnabled = not aimbotEnabled
-    AimbotButton.Text = aimbotEnabled and "Аимбот (Выкл)" or "Аимбот (Вкл)"
-    AimbotButton.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(0, 150, 0)
-end)
+AimbotButton.MouseButton1Click:Connect(ToggleAimbot)
 
 FlyButton.MouseButton1Click:Connect(ToggleFly)
 
@@ -305,27 +422,12 @@ SpeedButton.MouseButton1Click:Connect(ToggleSpeed)
 
 TeleportButton.MouseButton1Click:Connect(SelectTeleportTarget)
 
--- ============================================
--- 9. ОСНОВНОЙ ЦИКЛ (ОБНОВЛЕНИЕ КАЖДЫЙ КАДР)
--- ============================================
-game:GetService("RunService").RenderStepped:Connect(function()
-    -- Аимбот
-    if aimbotEnabled then
-        local target = GetClosestPlayer()
-        if target then
-            AimAtPlayer(target)
-        end
-    end
-    
-    -- Обновление ESP (если появились новые игроки)
-    if espEnabled then
-        UpdateESP()
-    end
+-- Закрытие меню
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
 end)
 
--- ============================================
--- 10. СКРЫТИЕ МЕНЮ ПО F1
--- ============================================
+-- Показать меню по F1
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.F1 then
@@ -333,4 +435,18 @@ game:GetService("UserInputService").InputBegan:Connect(function(input, gameProce
     end
 end)
 
-print("Чит загружен! Нажми F1 для скрытия/показа меню.")
+-- ============================================
+-- 8. ОСНОВНОЙ ЦИКЛ (Аимбот работает постоянно)
+-- ============================================
+game:GetService("RunService").RenderStepped:Connect(function()
+    if aimbotEnabled then
+        local target = GetClosestPlayerInRadius()
+        if target then
+            AimAtPlayer(target)
+        end
+    end
+end)
+
+print("✅ Улучшенный чит загружен! Нажми F1 для меню.")
+print("🎯 ESP: Зелёный = видим, Красный = за стеной")
+print("🔄 GUI можно перетаскивать за заголовок")
