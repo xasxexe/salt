@@ -1,5 +1,5 @@
 -- ============================================
--- ПРОСТАЯ РАБОЧАЯ ВЕРСИЯ (ВСЁ ЧЕРЕЗ КЛАВИШИ)
+-- ВЕРСИЯ С ПЛАВАЮЩЕЙ ИКОНКОЙ ПОВЕРХ ВСЕГО
 -- ============================================
 
 local LocalPlayer = game.Players.LocalPlayer
@@ -16,14 +16,103 @@ local flyEnabled = false
 local speedMultiplier = 1
 local aimbotRadius = 300
 local espObjects = {}
+local menuVisible = true
+local isDragging = false
+local dragStart = nil
+local dragStartPos = nil
 
 -- ============================================
--- 1. ПРОСТОЕ GUI (ТОЛЬКО КНОПКИ)
+-- 1. ГЛАВНЫЙ GUI (ЭКРАН)
 -- ============================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = LocalPlayer.PlayerGui
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling  -- Чтобы быть поверх всего
 
+-- ============================================
+-- 2. ПЛАВАЮЩАЯ ИКОНКА (ПОВЕРХ ВСЕГО)
+-- ============================================
+local IconButton = Instance.new("ImageButton")
+IconButton.Parent = ScreenGui
+IconButton.Size = UDim2.new(0, 50, 0, 50)
+IconButton.Position = UDim2.new(0.02, 0, 0.02, 0)  -- Левый верхний угол
+IconButton.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+IconButton.BackgroundTransparency = 0.15
+IconButton.BorderSizePixel = 0
+IconButton.Image = "rbxassetid://7074833319"  -- Круглая текстура
+IconButton.ImageColor3 = Color3.fromRGB(100, 150, 255)
+IconButton.ImageTransparency = 0.3
+IconButton.ZIndex = 9999  -- Максимальный приоритет
+
+-- Текст на иконке
+local IconText = Instance.new("TextLabel")
+IconText.Parent = IconButton
+IconText.Size = UDim2.new(1, 0, 1, 0)
+IconText.Text = "⚡"
+IconText.TextColor3 = Color3.fromRGB(255, 255, 255)
+IconText.BackgroundTransparency = 1
+IconText.TextScaled = true
+IconText.Font = Enum.Font.GothamBold
+IconText.ZIndex = 9999
+
+-- Подсказка при наведении (Tooltip)
+local Tooltip = Instance.new("TextLabel")
+Tooltip.Parent = IconButton
+Tooltip.Size = UDim2.new(0, 120, 0, 25)
+Tooltip.Position = UDim2.new(0.5, -60, 1, 5)
+Tooltip.Text = "Чит меню (клик)"
+Tooltip.TextColor3 = Color3.fromRGB(255, 255, 255)
+Tooltip.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+Tooltip.BackgroundTransparency = 0.3
+Tooltip.TextScaled = true
+Tooltip.Font = Enum.Font.GothamMedium
+Tooltip.Visible = false
+Tooltip.ZIndex = 9999
+
+-- Показать подсказку при наведении
+IconButton.MouseEnter:Connect(function()
+    Tooltip.Visible = true
+end)
+IconButton.MouseLeave:Connect(function()
+    Tooltip.Visible = false
+end)
+
+-- ============================================
+-- 3. ПЕРЕТАСКИВАНИЕ ИКОНКИ (ЧЕРЕЗ МЫШЬ)
+-- ============================================
+IconButton.MouseButton1Down:Connect(function()
+    isDragging = true
+    dragStart = UserInput.GetMouseLocation()
+    dragStartPos = IconButton.Position
+end)
+
+UserInput.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = false
+    end
+end)
+
+-- Перетаскивание через RenderStepped (плавное)
+RunService.RenderStepped:Connect(function()
+    if isDragging then
+        local mousePos = UserInput.GetMouseLocation()
+        local delta = mousePos - dragStart
+        
+        -- Конвертируем пиксели в UDim2
+        local newX = dragStartPos.X.Scale + (delta.X / Camera.ViewportSize.X)
+        local newY = dragStartPos.Y.Scale + (delta.Y / Camera.ViewportSize.Y)
+        
+        -- Ограничиваем, чтобы иконка не уходила за экран
+        newX = math.clamp(newX, 0, 0.95)
+        newY = math.clamp(newY, 0, 0.95)
+        
+        IconButton.Position = UDim2.new(newX, 0, newY, 0)
+    end
+end)
+
+-- ============================================
+-- 4. ОСНОВНОЕ МЕНЮ
+-- ============================================
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.Size = UDim2.new(0, 180, 0, 220)
@@ -32,6 +121,8 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 MainFrame.BackgroundTransparency = 0.1
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true
+MainFrame.ZIndex = 100
 
 local Title = Instance.new("TextLabel")
 Title.Parent = MainFrame
@@ -39,7 +130,9 @@ Title.Size = UDim2.new(1, 0, 0, 28)
 Title.Text = "🔧 Чит (F1)"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+Title.ZIndex = 100
 
+-- Функция кнопок
 local function Btn(parent, text, y, color)
     local b = Instance.new("TextButton")
     b.Parent = parent
@@ -51,6 +144,7 @@ local function Btn(parent, text, y, color)
     b.BorderSizePixel = 0
     b.Font = Enum.Font.GothamMedium
     b.TextSize = 13
+    b.ZIndex = 100
     return b
 end
 
@@ -61,7 +155,7 @@ local SpeedBtn = Btn(MainFrame, "Скорость x1", 123)
 local TpBtn = Btn(MainFrame, "Телепорт [F2]", 153)
 
 -- ============================================
--- 2. КРУГ АИМБОТА
+-- 5. КРУГ АИМБОТА
 -- ============================================
 local AimbotCircle = Instance.new("ImageLabel")
 AimbotCircle.Parent = ScreenGui
@@ -72,10 +166,10 @@ AimbotCircle.Image = "rbxassetid://7074833319"
 AimbotCircle.ImageColor3 = Color3.fromRGB(255, 255, 255)
 AimbotCircle.ImageTransparency = 0.85
 AimbotCircle.Visible = false
-AimbotCircle.ZIndex = 999
+AimbotCircle.ZIndex = 50
 
 -- ============================================
--- 3. ФУНКЦИЯ ВИДИМОСТИ
+-- 6. ФУНКЦИЯ ВИДИМОСТИ (Raycast)
 -- ============================================
 local function IsVisible(origin, target)
     local direction = (target - origin).Unit
@@ -93,7 +187,7 @@ local function IsVisible(origin, target)
 end
 
 -- ============================================
--- 4. ESP (РАБОТАЕТ)
+-- 7. ESP
 -- ============================================
 local function UpdateESP()
     for _, obj in pairs(espObjects) do
@@ -111,7 +205,6 @@ local function UpdateESP()
                 local color = visible and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
                 local transp = visible and 0.3 or 0.5
                 
-                -- Рамка
                 local box = Instance.new("BoxHandleAdornment")
                 box.Size = Vector3.new(3.5, 5.5, 2)
                 box.Adornee = root
@@ -122,7 +215,6 @@ local function UpdateESP()
                 box.Parent = root
                 table.insert(espObjects, box)
                 
-                -- Имя
                 local billboard = Instance.new("BillboardGui")
                 billboard.Adornee = root
                 billboard.Size = UDim2.new(0, 120, 0, 30)
@@ -177,7 +269,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- 5. АИМБОТ (ТОЛЬКО ВИДИМЫЕ)
+-- 8. АИМБОТ
 -- ============================================
 local function GetClosestVisiblePlayer()
     local character = LocalPlayer.Character
@@ -191,7 +283,6 @@ local function GetClosestVisiblePlayer()
         if player ~= LocalPlayer and player.Character then
             local root = player.Character:FindFirstChild("HumanoidRootPart")
             if root then
-                -- Только видимые
                 if not IsVisible(Camera.CFrame.Position, root.Position) then
                     continue
                 end
@@ -221,7 +312,7 @@ local function AimAtPlayer(player)
 end
 
 -- ============================================
--- 6. ПОЛЁТ
+-- 9. ПОЛЁТ
 -- ============================================
 local flyVelocity = nil
 local flyKeys = {W = false, S = false, A = false, D = false, Space = false, Shift = false}
@@ -287,7 +378,7 @@ UserInput.InputEnded:Connect(function(input)
 end)
 
 -- ============================================
--- 7. СКОРОСТЬ
+-- 10. СКОРОСТЬ
 -- ============================================
 local function ToggleSpeed()
     local char = LocalPlayer.Character
@@ -309,13 +400,12 @@ local function ToggleSpeed()
 end
 
 -- ============================================
--- 8. ТЕЛЕПОРТ (F2)
+-- 11. ТЕЛЕПОРТ (F2)
 -- ============================================
 local function DoTeleport()
     local char = LocalPlayer.Character
     if not char then return end
     
-    -- Ищем ближайшего игрока
     local closest = nil
     local closestDist = math.huge
     
@@ -341,7 +431,7 @@ local function DoTeleport()
 end
 
 -- ============================================
--- 9. ПОДКЛЮЧЕНИЕ КНОПОК
+-- 12. ПОДКЛЮЧЕНИЕ КНОПОК
 -- ============================================
 ESPBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
@@ -362,11 +452,20 @@ SpeedBtn.MouseButton1Click:Connect(ToggleSpeed)
 TpBtn.MouseButton1Click:Connect(DoTeleport)
 
 -- ============================================
--- 10. КЛАВИШИ
+-- 13. УПРАВЛЕНИЕ ИКОНКОЙ И МЕНЮ
 -- ============================================
+
+-- Открытие/закрытие меню через иконку
+IconButton.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    MainFrame.Visible = menuVisible
+end)
+
+-- Закрытие меню через F1
 UserInput.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.F1 then
-        MainFrame.Visible = not MainFrame.Visible
+        menuVisible = not menuVisible
+        MainFrame.Visible = menuVisible
     end
     if input.KeyCode == Enum.KeyCode.F2 then
         DoTeleport()
@@ -374,7 +473,7 @@ UserInput.InputBegan:Connect(function(input)
 end)
 
 -- ============================================
--- 11. ОСНОВНОЙ ЦИКЛ (АИМБОТ)
+-- 14. ОСНОВНОЙ ЦИКЛ (АИМБОТ)
 -- ============================================
 RunService.RenderStepped:Connect(function()
     if aimbotEnabled then
@@ -386,7 +485,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- 12. ВОССТАНОВЛЕНИЕ ПОСЛЕ СМЕРТИ
+-- 15. ВОССТАНОВЛЕНИЕ ПОСЛЕ СМЕРТИ
 -- ============================================
 LocalPlayer.CharacterAdded:Connect(function()
     wait(0.5)
@@ -403,6 +502,7 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 print("✅ Чит загружен!")
-print("F1 - меню | F2 - телепорт к ближайшему")
+print("⚡ Иконка в левом верхнем углу - клик для меню")
+print("🔄 Иконку можно перетаскивать")
+print("F1 - меню | F2 - телепорт")
 print("🟢 ESP: Зелёный = видим, Красный = за стеной")
-print("🎯 Аимбот целится ТОЛЬКО в видимых")
